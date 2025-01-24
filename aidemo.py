@@ -5,27 +5,27 @@ import argparse
 import os
 import sys
 import time
-import gi
-import cv2
-import glob
-import numpy as np
 from threading import Event, Thread, Lock
 from queue import Queue
 
-gi.require_version('Gtk', '3.0')
+import gi
+import numpy as np
+import cv2
+
 gi.require_version('GdkPixbuf', '2.0')
 from gi.repository.GdkPixbuf import Colorspace, Pixbuf
-from gi.repository import Gtk, GLib, GObject
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk, GLib
 
+from ai import Ai
+from loadscreen import LoadScreen
+from camera import CameraUSB,CameraVM016
+
+#768x480?
 FRAME_HEIGHT = {"hdmi": 800, "lvds": 600}
 FRAME_WIDTH = {"hdmi": 1280, "lvds": 800}
 PIC_SIZE = {"hdmi": (300,300), "lvds": (225,225)}
 TRIGGER_BTN_SPACING = {"hdmi": 300, "lvds": 100}
-
-from ai import Ai
-from loadscreen import LoadScreen
-from camera import *
-
 
 class AiDemo(Gtk.Window):
     def __init__(self, args, int_event):
@@ -103,7 +103,7 @@ class AiDemo(Gtk.Window):
         celebs = [ 'danny', 'fairuza', 'richard', 'shirley', 'vin']
 
         for c in celebs:
-            celeb = cv2.imread('demo-data/{}.jpg'.format(c))
+            celeb = cv2.imread(f'demo-data/{c}.jpg')
             celeb = cv2.cvtColor(celeb, cv2.COLOR_BGR2RGB)
             celeb = cv2.resize(celeb, self.pic_size,
                                interpolation=cv2.INTER_CUBIC)
@@ -170,7 +170,7 @@ class AiDemo(Gtk.Window):
             '<span font="14.0" font_weight="bold">Your Face</span>'
         )
         self.you_label.set_valign(Gtk.Align.START)
-        self.you_label.set_margin_bottom(30)
+        self.you_label.set_margin_bottom(30) #20
         self.result_label.set_valign(Gtk.Align.START)
         self.image_face.set_valign(Gtk.Align.START)
         self.image_celeb.set_valign(Gtk.Align.START)
@@ -180,7 +180,7 @@ class AiDemo(Gtk.Window):
             '<span font="14.0" font_weight="bold">Trigger</span>'
         )
         self.trigger_btn.add(btn_label)
-        self.trigger_btn.set_size_request(270, 80)
+        self.trigger_btn.set_size_request(270, 80) #170, 60
 
         self.mode_switch.set_valign(Gtk.Align.CENTER)
         switch_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=30)
@@ -221,8 +221,7 @@ class AiDemo(Gtk.Window):
                 color = 'black'
 
             num_label.set_markup(
-                '<span font="14.0" fgcolor="{}"><b>{}.</b></span>'.format(
-                    color, i+1)
+                f'<span font="14.0" fgcolor="{color}"><b>{i+1}.</b></span>'
             )
             num_label.set_halign(Gtk.Align.START)
             self.celeb_labels[i].set_width_chars(26)
@@ -275,9 +274,8 @@ class AiDemo(Gtk.Window):
         self.ai.initialize()
         duration = time.time() - start
         GLib.idle_add(self.loadscreen.append_text,
-                      'Loading Model and Embeddings done. ({:6.3f} s)'.format(
-                          duration
-                      ), 0.5,
+                      f'Loading Model and Embeddings done. ({duration:6.3f} s)',
+                      0.5,
                       priority=GLib.PRIORITY_DEFAULT_IDLE)
 
         # AI warmup
@@ -288,7 +286,8 @@ class AiDemo(Gtk.Window):
         self.ai.run_inference(self.celebs[0], npu=True)
         duration = time.time() - start
         GLib.idle_add(self.loadscreen.append_text,
-                      'Warming up done. ({:6.3f} s)'.format(duration), 0.75,
+                      f'Warming up done. ({duration:6.3f} s)',
+                      0.75,
                       priority=GLib.PRIORITY_DEFAULT_IDLE)
 
         time.sleep(1)
@@ -588,12 +587,10 @@ class AiDemo(Gtk.Window):
                 color = 'black'
 
             self.celeb_labels[i].set_markup(
-                '<span font="14.0" fgcolor="{}"><b>{}</b></span>'.format(
-                    color, ranking[i][1])
+                f'<span font="14.0" fgcolor="{color}"><b>{ranking[i][1]}</b></span>'
             )
             self.dist_labels[i].set_markup(
-                '<span font="14.0" fgcolor="{}"><b>{:8.3f}</b></span>'.format(
-                    color, ranking[i][0])
+                f'<span font="14.0" fgcolor="{color}"><b>{ranking[i][0]:8.3f}</b></span>'
             )
 
         return False

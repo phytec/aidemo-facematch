@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # Author: Martin Schwan <m.schwan@phytec.de>
 
-import cv2 as cv
 import glob
-import os
 import subprocess
+import cv2 as cv
 
 class Camera():
     def __init__(self):
