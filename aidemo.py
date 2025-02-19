@@ -7,6 +7,7 @@ import sys
 import time
 import gi
 import cv2
+import glob
 import numpy as np
 from threading import Event, Thread, Lock
 from queue import Queue
@@ -23,6 +24,7 @@ TRIGGER_BTN_SPACING = {"hdmi": 300, "lvds": 100}
 
 from ai import Ai
 from loadscreen import LoadScreen
+from camera import *
 
 
 class AiDemo(Gtk.Window):
@@ -30,18 +32,19 @@ class AiDemo(Gtk.Window):
         Gtk.Window.__init__(self, title='Celebrity Face Match')
         self.args = args
 
-        if self.args.camera == 'vm016':
-            import camvm016 as camera
-        else if self.args.camera == 'usb':
-            import camusb as camera
-
         model_file = 'demo-data/models/tflite/quantized_modelh5-15.tflite'
         embeddings_file = 'demo-data/EMBEDDINGS_quantized_modelh5-15.json'
         self.ai = Ai(os.path.join(sys.path[0], model_file),
                      os.path.join(sys.path[0], embeddings_file),
                      modeltype = 'normal')
 
-        self.cap = camera.get_camera()
+        if self.args.camera == 'vm016':
+            self.camera = CameraVM016()
+        elif self.args.camera == 'usb':
+            self.camera = CameraUSB()
+        else:
+            raise AttributeError(f'Invalid camera argument "{self.args.camera}"!')
+        self.camera.open()
 
         self.set_resizable(False)
         self.set_border_width(20)
@@ -253,7 +256,7 @@ class AiDemo(Gtk.Window):
     def load_ai(self):
         time.sleep(1)
 
-        if self.cap is None:
+        if self.camera.videoCapture is None:
             GLib.idle_add(self.loadscreen.append_text,
                           'Failed to open video device',
                           0.0)
@@ -310,13 +313,13 @@ class AiDemo(Gtk.Window):
             if not notimeout:
                 continue
 
-            ret, frame = self.cap.read()
+            ret, frame = self.camera.videoCapture.read()
             if ret == 0:
                 print('No Frame')
                 continue
 
             framecount += 1
-            frame = camera.color_convert(frame)
+            frame = self.camera.convert_frame_color(frame)
 
             if self.image_queue.full():
                 self.image_queue.get()
@@ -371,7 +374,7 @@ class AiDemo(Gtk.Window):
             GLib.idle_add(self.update_stream, frame,
                           priority=GLib.PRIORITY_HIGH)
 
-        self.cap.release()
+        self.camera.videoCapture.release()
 
     def shuffle_celebs(self):
         count = 0
